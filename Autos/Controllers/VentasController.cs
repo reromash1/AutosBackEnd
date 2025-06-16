@@ -103,5 +103,75 @@ namespace Autos.Controllers
                     ClienteId = venta.ClienteId
                 });
         }
+        // GET: api/ventas/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<VentaDTO>> GetVenta(int id)
+        {
+            var venta = await _context.Venta.FindAsync(id);
+            if (venta == null) return NotFound();
+
+            var modelo = await _context.ModeloCarro.FindAsync(venta.ModeloCarroId);
+            var marca = await _context.Marca.FindAsync(modelo?.MarcaId);
+            var cliente = await _context.Cliente.FindAsync(venta.ClienteId);
+
+            return new VentaDTO
+            {
+                VentaId = venta.VentaId,
+                FechaVenta = venta.FechaVenta,
+                PrecioVenta = venta.PrecioVenta,
+                Cantidad = venta.Cantidad,
+                ModeloCarroId = venta.ModeloCarroId,
+                ModeloNombre = modelo?.Nombre,
+                ModeloColor = modelo?.Color,
+                MarcaId = marca?.MarcaId ?? 0,
+                MarcaNombre = marca?.Nombre,
+                ClienteId = venta.ClienteId,
+                ClienteNombre = cliente?.Nombre
+            };
+        }
+
+        // PUT: api/ventas/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutVenta(int id, VentaCrearDTO dto)
+        {
+            var venta = await _context.Venta.FindAsync(id);
+            if (venta == null) return NotFound("Venta no encontrada");
+
+            var modelo = await _context.ModeloCarro.FindAsync(dto.ModeloCarroId);
+            if (modelo == null) return NotFound("Modelo no encontrado");
+
+            var clienteExiste = await _context.Cliente.AnyAsync(c => c.ClienteId == dto.ClienteId);
+            if (!clienteExiste) return NotFound("Cliente no encontrado");
+
+            venta.ModeloCarroId = dto.ModeloCarroId;
+            venta.ClienteId = dto.ClienteId;
+            venta.PrecioVenta = dto.PrecioVenta;
+            venta.Cantidad = dto.Cantidad;
+
+            _context.Entry(venta).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // DELETE: api/ventas/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteVenta(int id)
+        {
+            var venta = await _context.Venta.FindAsync(id);
+            if (venta == null) return NotFound();
+
+            var modelo = await _context.ModeloCarro.FindAsync(venta.ModeloCarroId);
+            if (modelo != null)
+            {
+                modelo.Stock += venta.Cantidad; // Reintegrar stock si se elimina la venta
+            }
+
+            _context.Venta.Remove(venta);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
     }
 }
